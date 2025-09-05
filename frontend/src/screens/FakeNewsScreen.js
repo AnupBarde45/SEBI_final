@@ -8,7 +8,7 @@ const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
 const { width: screenWidth } = Dimensions.get('window');
 
-const GEMINI_API_KEY = 'AIzaSyAoX1_yA1FmwAHc49V7vo76kiSogOB0mHo';
+const GEMINI_API_KEY = 'XXXXXXXXXXXXXX';
 const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
 
 const AnimatedPieChart = ({ score, size = 120 }) => {
