@@ -15,6 +15,8 @@ import CorrelationHeatmapScreen from './src/screens/CorrelationHeatmapScreen';
 import EfficientFrontierScreen from './src/screens/EfficientFrontierScreen';
 import DiversificationScoreScreen from './src/screens/DiversificationScoreScreen';
 import TutorialScreen from './src/screens/TutorialScreen';
+import StockAnalysisScreen from './src/screens/StockAnalysisScreen';
+import FakeNewsDetectionScreen from './src/screens/FakeNewsDetectionScreen';
 
 const Stack = createStackNavigator();
 
@@ -36,6 +38,8 @@ export default function App() {
         <Stack.Screen name="EfficientFrontier" component={EfficientFrontierScreen} options={{ title: 'Efficient Frontier' }} />
         <Stack.Screen name="DiversificationScore" component={DiversificationScoreScreen} options={{ title: 'Diversification Score' }} />
         <Stack.Screen name="Tutorial" component={TutorialScreen} options={{ title: 'SEBI Learning Tutorial' }} />
+        <Stack.Screen name="StockAnalysis" component={StockAnalysisScreen} options={{ title: 'Stock Analysis' }} />
+        <Stack.Screen name="FakeNewsDetection" component={FakeNewsDetectionScreen} options={{ title: 'Fake News Detection' }} />
       </Stack.Navigator>
     </NavigationContainer>
   );

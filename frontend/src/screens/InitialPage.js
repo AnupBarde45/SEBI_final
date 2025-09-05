@@ -1,9 +1,9 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
 
 export default function InitialPage({ navigation }) {
   return (
-    <View style={styles.container}>
+    <ScrollView contentContainerStyle={styles.container}>
       <TouchableOpacity 
         style={styles.button}
         onPress={() => navigation.navigate('Disclaimer')}
@@ -24,7 +24,14 @@ export default function InitialPage({ navigation }) {
       >
         <Text style={styles.buttonText}>Tutorial</Text>
       </TouchableOpacity>
-    </View>
+      
+      <TouchableOpacity 
+        style={[styles.button, { backgroundColor: '#667eea' }]}
+        onPress={() => navigation.navigate('StockAnalysis')}
+      >
+        <Text style={styles.buttonText}>Stock Analysis</Text>
+      </TouchableOpacity>
+    </ScrollView>
   );
 }
 
