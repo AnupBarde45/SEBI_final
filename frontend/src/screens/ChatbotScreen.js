@@ -1,11 +1,11 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 
-function StockAnalysisScreen({ navigation }) {
+function ChatbotScreen({ navigation }) {
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Stock Trends & Analysis</Text>
-      <Text style={styles.subtitle}>Understand how stock predictions are made (for educational purposes)!</Text>
+      <Text style={styles.title}>AI Chatbot</Text>
+      <Text style={styles.subtitle}>Your personal investment guide is here to help!</Text>
     </View>
   );
 }
@@ -31,4 +31,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default StockAnalysisScreen;
+export default ChatbotScreen;
