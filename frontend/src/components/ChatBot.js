@@ -8,10 +8,11 @@ import {
   StyleSheet,
   ActivityIndicator,
 } from 'react-native';
+import API_KEYS from '../config/apiKeys';
 
-const GEMINI_API_KEY = 'xxxxxx'; // Replace with your actual key
+const GEMINI_API_KEY = API_KEYS.GEMINI_API_KEY;
 const GEMINI_API_URL =
-  'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
+  'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
 
 export default function ChatBot({ stockData, symbol }) {
   const [messages, setMessages] = useState([

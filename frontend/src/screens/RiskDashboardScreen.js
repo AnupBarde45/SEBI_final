@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
-import { riskAPI } from '../services/api';
-import RiskScoreGauge from '../components/RiskScoreGauge';
-import MetricCard from '../components/MetricCard';
+import { View, Text, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
+import { useUser } from '../context/UserContext';
+
+const BACKEND_URL = 'http://172.28.175.90:3000';
 
 export default function RiskDashboardScreen({ route }) {
-  const { userId } = route.params;
+  const { userId, token } = useUser();
   const [profile, setProfile] = useState(null);
   const [metrics, setMetrics] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -16,13 +16,23 @@ export default function RiskDashboardScreen({ route }) {
 
   const loadData = async () => {
     try {
-      const [profileRes, metricsRes] = await Promise.all([
-        riskAPI.getRiskProfile(userId),
-        riskAPI.getMetrics(userId),
-      ]);
+      const profileResponse = await fetch(`${BACKEND_URL}/api/risk/profile/${userId}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      
+      const metricsResponse = await fetch(`${BACKEND_URL}/api/risk/metrics/${userId}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
 
-      setProfile(profileRes.data);
-      setMetrics(metricsRes.data);
+      if (profileResponse.ok) {
+        const profileData = await profileResponse.json();
+        setProfile(profileData);
+      }
+
+      if (metricsResponse.ok) {
+        const metricsData = await metricsResponse.json();
+        setMetrics(metricsData);
+      }
     } catch (error) {
       console.error('Failed to load data:', error);
     }
@@ -32,6 +42,7 @@ export default function RiskDashboardScreen({ route }) {
   if (loading) {
     return (
       <View style={styles.center}>
+        <ActivityIndicator size="large" color="#007bff" />
         <Text>Loading...</Text>
       </View>
     );
@@ -48,17 +59,11 @@ export default function RiskDashboardScreen({ route }) {
   }
 
   return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={styles.contentContainer}
-      showsVerticalScrollIndicator={true}
-    >
-      {/* Header Section */}
+    <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
       <View style={styles.header}>
         <Text style={styles.profileType}>{profile.profileType} Investor</Text>
         <Text style={styles.description}>
-          {profile.profileDescription?.description ||
-            'Risk profile assessment complete'}
+          {profile.profileDescription?.description || 'Risk profile assessment complete'}
         </Text>
         {profile.profileDescription && (
           <View style={styles.allocationContainer}>
@@ -70,83 +75,44 @@ export default function RiskDashboardScreen({ route }) {
         )}
       </View>
 
-      {/* Risk Score Gauge */}
-      <View style={styles.gaugeWrapper}>
-        <RiskScoreGauge score={profile.riskScore} />
+      <View style={styles.scoreContainer}>
+        <Text style={styles.scoreTitle}>Risk Score</Text>
+        <Text style={styles.scoreValue}>{profile.riskScore}/100</Text>
       </View>
 
-      {/* Metrics Section */}
       {metrics && (
         <View style={styles.metricsContainer}>
           <Text style={styles.sectionTitle}>Portfolio Risk Metrics</Text>
+          
+          <View style={styles.metricCard}>
+            <Text style={styles.metricTitle}>Volatility</Text>
+            <Text style={styles.metricValue}>{metrics.volatility}%</Text>
+            <Text style={styles.metricDesc}>Annual price fluctuation</Text>
+          </View>
 
-          <MetricCard
-            title="Volatility"
-            value={`${metrics.volatility}%`}
-            description="Annual price fluctuation"
-            color={
-              metrics.volatility > 20
-                ? '#e74c3c'
-                : metrics.volatility > 15
-                ? '#f39c12'
-                : '#27ae60'
-            }
-          />
+          <View style={styles.metricCard}>
+            <Text style={styles.metricTitle}>Beta</Text>
+            <Text style={styles.metricValue}>{metrics.beta}</Text>
+            <Text style={styles.metricDesc}>Market sensitivity</Text>
+          </View>
 
-          <MetricCard
-            title="Beta"
-            value={metrics.beta}
-            description="Market sensitivity"
-            color={
-              metrics.beta > 1.2
-                ? '#e74c3c'
-                : metrics.beta > 0.8
-                ? '#f39c12'
-                : '#27ae60'
-            }
-          />
+          <View style={styles.metricCard}>
+            <Text style={styles.metricTitle}>Sharpe Ratio</Text>
+            <Text style={styles.metricValue}>{metrics.sharpeRatio}</Text>
+            <Text style={styles.metricDesc}>Risk-adjusted return</Text>
+          </View>
 
-          <MetricCard
-            title="Sharpe Ratio"
-            value={metrics.sharpeRatio}
-            description="Risk-adjusted return"
-            color={
-              metrics.sharpeRatio > 1
-                ? '#27ae60'
-                : metrics.sharpeRatio > 0.5
-                ? '#f39c12'
-                : '#e74c3c'
-            }
-          />
+          <View style={styles.metricCard}>
+            <Text style={styles.metricTitle}>Expected Return</Text>
+            <Text style={styles.metricValue}>{metrics.expectedReturn}%</Text>
+            <Text style={styles.metricDesc}>Annual expected return</Text>
+          </View>
 
-          <MetricCard
-            title="Expected Return"
-            value={`${metrics.expectedReturn}%`}
-            description="Annual expected return"
-            color={
-              metrics.expectedReturn > 8
-                ? '#27ae60'
-                : metrics.expectedReturn > 5
-                ? '#f39c12'
-                : '#e74c3c'
-            }
-          />
-
-          <MetricCard
-            title="Value at Risk (95%)"
-            value={`₹${metrics.var95}`}
-            description="Maximum daily loss"
-            color="#e74c3c"
-          />
-
-          {metrics.maxDrawdown && (
-            <MetricCard
-              title="Max Drawdown"
-              value={`${metrics.maxDrawdown}%`}
-              description="Worst case scenario loss"
-              color="#e74c3c"
-            />
-          )}
+          <View style={styles.metricCard}>
+            <Text style={styles.metricTitle}>Value at Risk (95%)</Text>
+            <Text style={styles.metricValue}>₹{metrics.var95}</Text>
+            <Text style={styles.metricDesc}>Maximum daily loss</Text>
+          </View>
         </View>
       )}
     </ScrollView>
@@ -157,11 +123,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f5f5f5',
-    height: '100vh',
-    maxHeight: '70vh',
   },
   contentContainer: {
-    paddingBottom: 20, // only bottom padding
+    paddingBottom: 20,
   },
   header: {
     padding: 16,
@@ -195,9 +159,21 @@ const styles = StyleSheet.create({
     color: '#34495e',
     fontWeight: '500',
   },
-  gaugeWrapper: {
-    marginTop: 16, // small gap under header
+  scoreContainer: {
     alignItems: 'center',
+    padding: 20,
+    backgroundColor: 'white',
+    marginTop: 10,
+  },
+  scoreTitle: {
+    fontSize: 18,
+    color: '#666',
+    marginBottom: 10,
+  },
+  scoreValue: {
+    fontSize: 48,
+    fontWeight: 'bold',
+    color: '#007bff',
   },
   metricsContainer: {
     padding: 16,
@@ -208,6 +184,27 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginBottom: 12,
     color: '#2c3e50',
+  },
+  metricCard: {
+    backgroundColor: 'white',
+    padding: 15,
+    borderRadius: 8,
+    marginBottom: 10,
+  },
+  metricTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  metricValue: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#007bff',
+    marginVertical: 5,
+  },
+  metricDesc: {
+    fontSize: 12,
+    color: '#666',
   },
   noData: {
     textAlign: 'center',

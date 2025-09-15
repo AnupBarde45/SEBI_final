@@ -1,0 +1,32 @@
+[
+  {
+    "id": "buy_success_generic",
+    "type": "BUY",
+    "condition": "generic",
+    "message": "Great virtual buy! Remember, successful investing often starts with thorough research. Did you check the company's fundamentals?"
+  },
+  {
+    "id": "buy_diversify_tip",
+    "type": "BUY",
+    "condition": "not_diversified",
+    "message": "💡 Guru Tip: You're concentrating a lot in one stock! For beginners, spreading investments across different stocks (diversification) is key to managing risk. Think about adding other sectors!"
+  },
+  {
+    "id": "sell_success_generic",
+    "type": "SELL",
+    "condition": "generic",
+    "message": "Good virtual sell! Taking profits or cutting losses is part of smart trading. Always have an exit strategy."
+  },
+  {
+    "id": "sell_stoploss_tip",
+    "type": "SELL",
+    "condition": "no_stoploss_set",
+    "message": "💡 Guru Tip: You sold! Consider setting a 'stop-loss' order (simulated) on your future trades. It's a way to automatically limit potential losses if a stock falls."
+  },
+  {
+    "id": "trade_overconfidence_warning",
+    "type": "ANY",
+    "condition": "high_frequency_same_stock",
+    "message": "🤔 Guru Insight: Trading too frequently in the same stock can be risky. Ensure each decision is based on solid analysis, not just emotion!"
+  }
+]

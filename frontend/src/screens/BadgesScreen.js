@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, ScrollView } from 'react-native';
-import { riskAPI } from '../services/api';
+import { View, Text, StyleSheet, FlatList, ScrollView, ActivityIndicator } from 'react-native';
+import { useUser } from '../context/UserContext';
+
+const BACKEND_URL = 'http://172.28.175.90:3000';
 
 const badgeInfo = {
   'Risk Explorer': {
@@ -21,7 +23,7 @@ const badgeInfo = {
 };
 
 export default function BadgesScreen({ route }) {
-  const { userId } = route.params;
+  const { userId, token } = useUser();
   const [badges, setBadges] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -31,8 +33,14 @@ export default function BadgesScreen({ route }) {
 
   const loadBadges = async () => {
     try {
-      const response = await riskAPI.getBadges(userId);
-      setBadges(response.data);
+      const response = await fetch(`${BACKEND_URL}/api/risk/badges/${userId}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setBadges(data);
+      }
     } catch (error) {
       console.error('Failed to load badges:', error);
     }
@@ -57,14 +65,15 @@ export default function BadgesScreen({ route }) {
 
   if (loading) {
     return (
-      <View style={styles.container}>
+      <View style={styles.center}>
+        <ActivityIndicator size="large" color="#007bff" />
         <Text>Loading badges...</Text>
       </View>
     );
   }
 
   return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={true}>
+    <ScrollView style={styles.container}>
       <Text style={styles.title}>Your Achievement Badges</Text>
       
       {badges.length === 0 ? (
@@ -101,8 +110,11 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f5f5f5',
-    height: '100vh',
-    maxHeight: '70vh',
+  },
+  center: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   title: {
     fontSize: 24,
@@ -152,6 +164,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    paddingVertical: 50,
   },
   noBadgesText: {
     fontSize: 20,
@@ -169,6 +182,8 @@ const styles = StyleSheet.create({
     backgroundColor: 'white',
     padding: 15,
     borderRadius: 10,
+    marginHorizontal: 20,
+    marginBottom: 20,
   },
   availableTitle: {
     fontSize: 16,

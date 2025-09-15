@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Alert, ScrollView } from 'react-native';
-import { riskAPI } from '../services/api';
+import { useUser } from '../context/UserContext';
+
+const BACKEND_URL = 'http://172.28.175.90:3000';
 
 const questions = [
   {
@@ -20,10 +22,10 @@ const questions = [
     question: 'How would you describe your income stability?',
     description: 'Income stability affects your ability to handle investment volatility',
     options: [
-      { label: 'Very stable with regular increases (Government/Corporate job)', value: 'very_stable' },
-      { label: 'Stable but limited growth (Steady employment)', value: 'stable' },
-      { label: 'Variable but predictable (Sales/Commission based)', value: 'variable' },
-      { label: 'Irregular and unpredictable (Freelance/Business)', value: 'irregular' }
+      { label: 'Very stable with regular increases', value: 'very_stable' },
+      { label: 'Stable but limited growth', value: 'stable' },
+      { label: 'Variable but predictable', value: 'variable' },
+      { label: 'Irregular and unpredictable', value: 'irregular' }
     ]
   },
   {
@@ -31,7 +33,7 @@ const questions = [
     question: 'What is your investment experience?',
     description: 'Experience helps you handle market volatility better',
     options: [
-      { label: 'Complete beginner (Never invested before)', value: 'beginner' },
+      { label: 'Complete beginner', value: 'beginner' },
       { label: 'Some experience (1-3 years)', value: 'some' },
       { label: 'Moderate experience (3-7 years)', value: 'moderate' },
       { label: 'Experienced investor (7+ years)', value: 'experienced' }
@@ -53,11 +55,11 @@ const questions = [
     question: 'What is your primary investment time horizon?',
     description: 'Longer horizons allow for more risk and potential growth',
     options: [
-      { label: 'Less than 2 years (Short-term goals)', value: 1 },
-      { label: '2-5 years (Medium-term goals)', value: 3 },
-      { label: '5-10 years (Long-term goals)', value: 7 },
-      { label: '10-20 years (Retirement planning)', value: 15 },
-      { label: 'More than 20 years (Wealth building)', value: 25 }
+      { label: 'Less than 2 years', value: 1 },
+      { label: '2-5 years', value: 3 },
+      { label: '5-10 years', value: 7 },
+      { label: '10-20 years', value: 15 },
+      { label: 'More than 20 years', value: 25 }
     ]
   },
   {
@@ -65,10 +67,10 @@ const questions = [
     question: 'What is your primary investment goal?',
     description: 'Different goals require different risk approaches',
     options: [
-      { label: 'Capital preservation (Keep money safe)', value: 'preservation' },
-      { label: 'Steady income generation (Regular returns)', value: 'income' },
-      { label: 'Balanced growth (Moderate returns)', value: 'balanced' },
-      { label: 'Wealth accumulation (High growth)', value: 'growth' }
+      { label: 'Capital preservation', value: 'preservation' },
+      { label: 'Steady income generation', value: 'income' },
+      { label: 'Balanced growth', value: 'balanced' },
+      { label: 'Wealth accumulation', value: 'growth' }
     ]
   },
   {
@@ -76,11 +78,11 @@ const questions = [
     question: 'If your investment portfolio lost 25% in 3 months, you would:',
     description: 'This tests your emotional response to market volatility',
     options: [
-      { label: 'Panic and sell everything immediately', value: 'very_low' },
-      { label: 'Feel very uncomfortable and consider selling', value: 'low' },
-      { label: 'Feel concerned but hold your investments', value: 'medium' },
-      { label: 'Stay calm and continue with your plan', value: 'high' },
-      { label: 'See it as a buying opportunity and invest more', value: 'very_high' }
+      { label: 'Panic and sell everything', value: 'very_low' },
+      { label: 'Feel uncomfortable and consider selling', value: 'low' },
+      { label: 'Feel concerned but hold investments', value: 'medium' },
+      { label: 'Stay calm and continue with plan', value: 'high' },
+      { label: 'See it as a buying opportunity', value: 'very_high' }
     ]
   },
   {
@@ -97,7 +99,7 @@ const questions = [
 ];
 
 export default function RiskQuizScreen({ route, navigation }) {
-  const { userId } = route.params;
+  const { userId, token } = useUser();
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [responses, setResponses] = useState({});
   const [loading, setLoading] = useState(false);
@@ -124,13 +126,25 @@ export default function RiskQuizScreen({ route, navigation }) {
   const submitQuiz = async (finalResponses) => {
     setLoading(true);
     try {
-      await riskAPI.submitQuiz(userId, finalResponses);
-      console.log('Quiz submitted, navigating to Home');
-      navigation.navigate('Home');
+      const response = await fetch(`${BACKEND_URL}/api/risk/quiz`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          responses: finalResponses
+        })
+      });
+
+      if (response.ok) {
+        navigation.navigate('Dashboard');
+      } else {
+        throw new Error('Failed to submit quiz');
+      }
     } catch (error) {
       console.error('Submit error:', error);
       Alert.alert('Error', 'Failed to submit quiz. Please try again.');
-      navigation.navigate('Home'); // Navigate even on error
     }
     setLoading(false);
   };
@@ -139,46 +153,46 @@ export default function RiskQuizScreen({ route, navigation }) {
 
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={true}>
-        <View style={styles.progressBar}>
-          <View style={[styles.progress, { width: `${((currentQuestion + 1) / questions.length) * 100}%` }]} />
-        </View>
-        
-        <Text style={styles.questionNumber}>
-          Question {currentQuestion + 1} of {questions.length}
-        </Text>
-        
-        <Text style={styles.question}>{question.question}</Text>
-        <Text style={styles.description}>{question.description}</Text>
-        
-        <View style={styles.optionsContainer}>
-          {question.options.map((option, index) => {
-            const isSelected = responses[question.id] === option.value;
-            return (
-              <TouchableOpacity
-                key={index}
-                style={[styles.option, isSelected && styles.selectedOption]}
-                onPress={() => handleAnswer(question.id, option.value)}
-                disabled={loading}
-              >
-                <Text style={[styles.optionText, isSelected && styles.selectedOptionText]}>
-                  {option.label}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-          
-          {currentQuestion === questions.length - 1 && responses[question.id] && (
-            <TouchableOpacity 
-              style={styles.submitButton}
-              onPress={handleSubmitQuiz}
+      <View style={styles.progressBar}>
+        <View style={[styles.progress, { width: `${((currentQuestion + 1) / questions.length) * 100}%` }]} />
+      </View>
+      
+      <Text style={styles.questionNumber}>
+        Question {currentQuestion + 1} of {questions.length}
+      </Text>
+      
+      <Text style={styles.question}>{question.question}</Text>
+      <Text style={styles.description}>{question.description}</Text>
+      
+      <View style={styles.optionsContainer}>
+        {question.options.map((option, index) => {
+          const isSelected = responses[question.id] === option.value;
+          return (
+            <TouchableOpacity
+              key={index}
+              style={[styles.option, isSelected && styles.selectedOption]}
+              onPress={() => handleAnswer(question.id, option.value)}
               disabled={loading}
             >
-              <Text style={styles.submitButtonText}>
-                {loading ? 'Analyzing Your Profile...' : 'Submit Risk Assessment'}
+              <Text style={[styles.optionText, isSelected && styles.selectedOptionText]}>
+                {option.label}
               </Text>
             </TouchableOpacity>
-          )}
-        </View>
+          );
+        })}
+        
+        {currentQuestion === questions.length - 1 && responses[question.id] && (
+          <TouchableOpacity 
+            style={styles.submitButton}
+            onPress={handleSubmitQuiz}
+            disabled={loading}
+          >
+            <Text style={styles.submitButtonText}>
+              {loading ? 'Analyzing Your Profile...' : 'Submit Risk Assessment'}
+            </Text>
+          </TouchableOpacity>
+        )}
+      </View>
     </ScrollView>
   );
 }
@@ -187,8 +201,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f5f5f5',
-    height: '100vh',
-    maxHeight: '70vh',
     padding: 20,
   },
   progressBar: {

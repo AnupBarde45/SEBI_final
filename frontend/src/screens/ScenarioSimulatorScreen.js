@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, Alert, TouchableOpacity, ScrollView } from 'react-native';
-import { Slider } from 'react-native';
-import { riskAPI } from '../services/api';
+import { View, Text, StyleSheet, Alert, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
+import { useUser } from '../context/UserContext';
+
+const BACKEND_URL = 'http://172.28.175.90:3000';
 
 export default function ScenarioSimulatorScreen({ route }) {
-  const { userId } = route.params;
+  const { userId, token } = useUser();
   const [marketChange, setMarketChange] = useState(0);
   const [portfolioChange, setPortfolioChange] = useState(0);
   const [profile, setProfile] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     loadProfile();
@@ -21,10 +23,18 @@ export default function ScenarioSimulatorScreen({ route }) {
 
   const loadProfile = async () => {
     try {
-      const response = await riskAPI.getRiskProfile(userId);
-      setProfile(response.data);
+      const response = await fetch(`${BACKEND_URL}/api/risk/profile/${userId}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setProfile(data);
+      }
     } catch (error) {
-      Alert.alert('Error', 'Failed to load profile');
+      console.error('Failed to load profile:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -32,8 +42,19 @@ export default function ScenarioSimulatorScreen({ route }) {
     if (!profile) return;
     
     try {
-      const response = await riskAPI.simulate(userId, marketChange);
-      setPortfolioChange(response.data.portfolioChange);
+      const response = await fetch(`${BACKEND_URL}/api/risk/simulate`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ marketChange })
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setPortfolioChange(data.portfolioChange);
+      }
     } catch (error) {
       console.error('Simulation failed:', error);
     }
@@ -52,16 +73,25 @@ export default function ScenarioSimulatorScreen({ route }) {
     return 'Low Impact';
   };
 
-  if (!profile) {
+  if (loading) {
     return (
-      <View style={styles.container}>
+      <View style={styles.center}>
+        <ActivityIndicator size="large" color="#007bff" />
         <Text>Loading...</Text>
       </View>
     );
   }
 
+  if (!profile) {
+    return (
+      <View style={styles.center}>
+        <Text>No risk profile found. Please take the quiz first.</Text>
+      </View>
+    );
+  }
+
   return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={true}>
+    <ScrollView style={styles.container}>
       <Text style={styles.title}>Market Scenario Simulator</Text>
       <Text style={styles.subtitle}>See how market changes affect your portfolio</Text>
 
@@ -122,8 +152,11 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f5f5f5',
-    height: '100vh',
-    maxHeight: '70vh',
+  },
+  center: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   title: {
     fontSize: 24,
@@ -144,6 +177,7 @@ const styles = StyleSheet.create({
     padding: 15,
     borderRadius: 10,
     marginBottom: 30,
+    marginHorizontal: 20,
   },
   profileText: {
     fontSize: 16,
@@ -154,6 +188,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'white',
     padding: 20,
     borderRadius: 10,
+    marginHorizontal: 20,
   },
   label: {
     fontSize: 18,

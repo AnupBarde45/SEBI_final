@@ -1,15 +1,16 @@
 import React, { useState } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 
-export default function DisclaimerScreen({ navigation }) {
+export default function DisclaimerScreen({ navigation, route }) {
   const [hasAccepted, setHasAccepted] = useState(false);
+  const nextScreen = route.params?.nextScreen || 'RiskQuiz';
 
   const handleProceed = () => {
     if (!hasAccepted) {
       Alert.alert('Acknowledgment Required', 'Please confirm that you have read and understood the information above.');
       return;
     }
-    navigation.navigate('RiskQuiz', { userId: 'user123' });
+    navigation.navigate(nextScreen);
   };
 
   return (

@@ -1,9 +1,11 @@
-const VectorDatabase = require('../config/database');
+const ChromaDBService = require('../config/chromaDB');
+const EmbeddingService = require('./embeddingService');
 const LlamaService = require('./llamaService');
 
 class RAGService {
     constructor() {
-        this.vectorDB = new VectorDatabase();
+        this.vectorDB = new ChromaDBService();
+        this.embeddingService = new EmbeddingService();
         this.llamaService = new LlamaService();
         this.initialized = false;
     }
@@ -12,12 +14,17 @@ class RAGService {
         try {
             const dbInitialized = await this.vectorDB.initialize();
             if (!dbInitialized) {
-                throw new Error('Failed to initialize vector database');
+                throw new Error('Failed to initialize ChromaDB');
+            }
+
+            const embeddingInitialized = await this.embeddingService.initialize();
+            if (!embeddingInitialized) {
+                throw new Error('Failed to initialize embedding service');
             }
 
             const llamaTest = await this.llamaService.testConnection();
             if (!llamaTest.success) {
-                throw new Error(`Llama API connection failed: ${llamaTest.error}`);
+                console.warn(`Llama API connection failed: ${llamaTest.error}. RAG will work with embeddings only.`);
             }
 
             this.initialized = true;
@@ -55,7 +62,7 @@ class RAGService {
                 console.log(`Processing batch ${Math.floor(i/batchSize) + 1}/${Math.ceil(newChunks.length/batchSize)} (${batch.length} chunks)...`);
                 
                 const texts = batch.map(chunk => chunk.text);
-                const embeddings = await this.llamaService.generateBatchEmbeddings(texts);
+                const embeddings = await this.embeddingService.generateBatchEmbeddings(texts);
                 
                 const documents = batch.map(chunk => chunk.text);
                 const metadatas = batch.map(chunk => chunk.metadata);
@@ -88,7 +95,7 @@ class RAGService {
 
             // Generate embedding for the question
             console.log('Generating embedding for question...');
-            const questionEmbedding = await this.llamaService.generateEmbedding(question);
+            const questionEmbedding = await this.embeddingService.generateEmbedding(question);
 
             // Search for similar documents
             console.log('Searching for relevant documents...');
