@@ -3,7 +3,6 @@ node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-
 # Expo
 .expo/
 dist/
@@ -31,6 +30,25 @@ yarn-error.*
 
 # local env files
 .env*.local
+.env
 
 # typescript
 *.tsbuildinfo
+
+# Database files
+*.sql
+*.db
+*.sqlite
+*.sqlite3
+
+# PDF files
+*.pdf
+data/pdfs/
+
+# Logs
+logs/
+*.log
+
+# ChromaDB
+chroma_db/
+.chroma/
