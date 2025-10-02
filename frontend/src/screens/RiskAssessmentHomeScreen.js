@@ -1,6 +1,8 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
 import { useUser } from '../context/UserContext';
+
+const BACKEND_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000';
 
 export default function RiskAssessmentHomeScreen({ navigation }) {
   const { userId } = useUser();

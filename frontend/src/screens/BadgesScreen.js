@@ -2,61 +2,85 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, FlatList, ScrollView, ActivityIndicator } from 'react-native';
 import { useUser } from '../context/UserContext';
 
-const BACKEND_URL = 'http://172.28.175.90:3000';
+const BACKEND_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000';
 
-const badgeInfo = {
-  'Risk Explorer': {
-    icon: '🎯',
-    description: 'Completed the Risk Profile Quiz',
-    color: '#3498db'
-  },
-  'Risk Forecaster': {
-    icon: '🔮',
-    description: 'Used the Scenario Simulator',
-    color: '#9b59b6'
-  },
-  'Risk Analyst': {
-    icon: '📊',
-    description: 'Viewed Risk Dashboard multiple times',
-    color: '#e67e22'
-  }
-};
+// Dynamic badge info will be fetched from API
 
 export default function BadgesScreen({ route }) {
   const { userId, token } = useUser();
   const [badges, setBadges] = useState([]);
+  const [badgeTypes, setBadgeTypes] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    loadBadges();
+    loadData();
   }, []);
+
+  const loadData = async () => {
+    await loadBadgeTypes();
+    await loadBadges();
+  };
+
+  const loadBadgeTypes = async () => {
+    try {
+      const response = await fetch(`${BACKEND_URL}/api/admin/badge-types`);
+      const types = await response.json();
+      setBadgeTypes(types);
+      return types;
+    } catch (error) {
+      console.error('Failed to load badge types:', error);
+      return [];
+    }
+  };
 
   const loadBadges = async () => {
     try {
-      const response = await fetch(`${BACKEND_URL}/api/risk/badges/${userId}`, {
+      const response = await fetch(`${BACKEND_URL}/api/risk/profile/${userId}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       
       if (response.ok) {
         const data = await response.json();
-        setBadges(data);
+        if (data && data.riskScore) {
+          const badge = getRiskBadge(data.riskScore);
+          if (badge !== 'Unknown Badge') {
+            setBadges([{ badgeType: badge, earnedAt: data.createdAt, riskScore: data.riskScore }]);
+          }
+        }
       }
     } catch (error) {
       console.error('Failed to load badges:', error);
     }
     setLoading(false);
   };
+  
+  const getRiskBadge = (score) => {
+    const badge = badgeTypes.find(b => score >= b.min_value && score <= b.max_value);
+    return badge ? badge.badge_name : 'Unknown Badge';
+  };
+
+  const getIconEmoji = (iconText) => {
+    const icons = {
+      'SHIELD': '🛡️',
+      'SCALE': '⚖️', 
+      'ROCKET': '🚀',
+      'DIAMOND': '💎'
+    };
+    return icons[iconText] || iconText;
+  };
 
   const renderBadge = ({ item }) => {
-    const info = badgeInfo[item.badgeType];
+    const info = badgeTypes.find(b => b.badge_name === item.badgeType);
+    if (!info) return null;
+    
     return (
-      <View style={[styles.badgeCard, { borderLeftColor: info.color }]}>
-        <Text style={styles.badgeIcon}>{info.icon}</Text>
+      <View style={[styles.badgeCard, { borderLeftColor: info.badge_color }]}>
+        <Text style={styles.badgeIcon}>{getIconEmoji(info.badge_icon)}</Text>
         <View style={styles.badgeContent}>
           <Text style={styles.badgeTitle}>{item.badgeType}</Text>
           <Text style={styles.badgeDescription}>{info.description}</Text>
           <Text style={styles.badgeDate}>
-            Earned: {new Date(item.earnedAt).toLocaleDateString()}
+            Risk Score: {item.riskScore} | Earned: {new Date(item.earnedAt).toLocaleDateString()}
           </Text>
         </View>
       </View>
@@ -80,25 +104,24 @@ export default function BadgesScreen({ route }) {
         <View style={styles.noBadges}>
           <Text style={styles.noBadgesText}>No badges earned yet!</Text>
           <Text style={styles.noBadgesSubtext}>
-            Complete activities to earn badges and track your progress.
+            Complete the Risk Assessment Quiz to earn your investor badge based on your risk score.
           </Text>
         </View>
       ) : (
-        <FlatList
-          data={badges}
-          renderItem={renderBadge}
-          keyExtractor={(item, index) => `${item.badgeType}-${index}`}
-          showsVerticalScrollIndicator={false}
-        />
+        badges.map((item, index) => (
+          <View key={index}>
+            {renderBadge({ item, index })}
+          </View>
+        ))
       )}
       
       <View style={styles.availableBadges}>
         <Text style={styles.availableTitle}>Available Badges:</Text>
-        {Object.entries(badgeInfo).map(([badgeType, info]) => (
-          <View key={badgeType} style={styles.availableBadge}>
-            <Text style={styles.availableIcon}>{info.icon}</Text>
-            <Text style={styles.availableName}>{badgeType}</Text>
-            <Text style={styles.availableDesc}>{info.description}</Text>
+        {badgeTypes.map((badge) => (
+          <View key={badge.id} style={styles.availableBadge}>
+            <Text style={styles.availableIcon}>{getIconEmoji(badge.badge_icon)}</Text>
+            <Text style={styles.availableName}>{badge.badge_name}</Text>
+            <Text style={styles.availableDesc}>{badge.description}</Text>
           </View>
         ))}
       </View>

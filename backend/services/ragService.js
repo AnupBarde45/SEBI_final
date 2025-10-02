@@ -87,7 +87,7 @@ class RAGService {
         }
     }
 
-    async queryDocuments(question, topK = 3) {
+    async queryDocuments(question, topK = 15) {
         try {
             if (!this.initialized) {
                 throw new Error('RAG Service not initialized');

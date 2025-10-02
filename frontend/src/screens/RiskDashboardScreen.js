@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
 import { useUser } from '../context/UserContext';
 
-const BACKEND_URL = 'http://172.28.175.90:3000';
+const BACKEND_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000';
 
 export default function RiskDashboardScreen({ route }) {
   const { userId, token } = useUser();

@@ -18,7 +18,7 @@ export default function DisclaimerScreen({ navigation, route }) {
       <View style={styles.headerContainer}>
         <TouchableOpacity 
           style={styles.backButton}
-          onPress={() => navigation.navigate('InitialPage')}
+          onPress={() => navigation.navigate('Home')}
         >
           <Text style={styles.backArrow}>←</Text>
         </TouchableOpacity>
@@ -109,7 +109,7 @@ export default function DisclaimerScreen({ navigation, route }) {
           <Text style={styles.sectionTitle}>⚖️ Important Disclaimers</Text>
           <Text style={styles.disclaimerText}>
             • This assessment is for educational purposes only{'\n'}
-            • Results are estimates based on historical data{'\n'}
+            • Results are estimates based on sample data{'\n'}
             • Past performance does not guarantee future results{'\n'}
             • All investments carry risk of loss{'\n'}
             • Consider consulting a financial advisor for personalized advice{'\n'}

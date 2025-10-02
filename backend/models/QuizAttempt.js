@@ -11,7 +11,7 @@ const QuizAttempt = sequelize.define('QuizAttempt', {
     type: DataTypes.UUID,
     allowNull: false,
     references: {
-      model: 'users',
+      model: 'Users',
       key: 'id'
     }
   },
@@ -28,7 +28,7 @@ const QuizAttempt = sequelize.define('QuizAttempt', {
     allowNull: true
   }
 }, {
-  tableName: 'QuizAttempts',
+  tableName: 'quiz_attempts',
   timestamps: true
 });
 

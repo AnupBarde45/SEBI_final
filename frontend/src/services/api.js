@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_BASE_URL = 'http://172.28.175.90:3000/api'; // Backend URL
+const API_BASE_URL = `${process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000'}/api`; // Backend URL
 
 const api = axios.create({
   baseURL: API_BASE_URL,

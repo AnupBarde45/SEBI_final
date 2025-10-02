@@ -3,13 +3,33 @@
   "version": "1.0.0",
   "scripts": {
     "dev": "nodemon server.js",
-    "start": "node server.js"
+    "start": "node server.js",
+    "setup:db": "node scripts/setupDatabase.js",
+    "add:tables": "node scripts/addNewTables.js",
+    "rag": "node scripts/startRAG.js",
+    "rag:dev": "nodemon scripts/startRAG.js",
+    "test:rag": "node scripts/testRAG.js"
   },
   "dependencies": {
-    "express": "^4.18.2",
+    "@chroma-core/default-embed": "^0.1.8",
+    "@xenova/transformers": "^2.17.2",
+    "axios": "^1.12.1",
+    "bcryptjs": "^3.0.2",
+    "chokidar": "^4.0.3",
+    "chromadb": "^3.0.15",
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",
-    "mongoose": "^8.0.3"
+    "express": "^4.18.2",
+    "fs-extra": "^11.3.1",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^8.0.3",
+    "node-cache": "^5.1.2",
+    "node-fetch": "^2.7.0",
+    "pdf-parse": "^1.1.1",
+    "pg": "^8.16.3",
+    "sequelize": "^6.37.7",
+    "sequelize-cli": "^6.6.3",
+    "sqlite3": "^5.1.7"
   },
   "devDependencies": {
     "nodemon": "^3.0.2"

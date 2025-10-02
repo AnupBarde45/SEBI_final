@@ -12,7 +12,7 @@ const UserProgress = sequelize.define('UserProgress', {
     allowNull: false,
     unique: true,
     references: {
-      model: 'users',
+      model: 'Users',
       key: 'id'
     }
   },
@@ -53,7 +53,7 @@ const UserProgress = sequelize.define('UserProgress', {
     defaultValue: DataTypes.NOW
   }
 }, {
-  tableName: 'UserProgresses',
+  tableName: 'user_progress',
   timestamps: true
 });
 

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, FlatList, ActivityIndicator, RefreshControl } from 'react-native';
 import { useUser } from '../context/UserContext';
 
-const BACKEND_URL = 'http://172.28.175.90:3000';
+const BACKEND_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000';
 
 const LeaderboardScreen = ({ navigation }) => {
   const { userId, token } = useUser();
@@ -65,7 +65,7 @@ const LeaderboardScreen = ({ navigation }) => {
         
         <View style={styles.scoreContainer}>
           <Text style={[styles.score, isCurrentUser && styles.currentUserText]}>
-            {item.totalQuizScore}
+            {item.latestScore || 0}
           </Text>
           <Text style={styles.scoreLabel}>points</Text>
         </View>
@@ -96,7 +96,7 @@ const LeaderboardScreen = ({ navigation }) => {
         <FlatList
           data={leaderboard}
           renderItem={renderLeaderboardItem}
-          keyExtractor={(item) => item.userId}
+          keyExtractor={(item, index) => item.userId || index.toString()}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
           }

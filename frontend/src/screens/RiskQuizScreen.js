@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Alert, ScrollView } from 'react-native';
 import { useUser } from '../context/UserContext';
 
-const BACKEND_URL = 'http://172.28.175.90:3000';
+const BACKEND_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000';
 
 const questions = [
   {
@@ -138,7 +138,7 @@ export default function RiskQuizScreen({ route, navigation }) {
       });
 
       if (response.ok) {
-        navigation.navigate('Dashboard');
+        navigation.replace('Dashboard');
       } else {
         throw new Error('Failed to submit quiz');
       }

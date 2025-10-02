@@ -12,7 +12,7 @@ const Portfolio = sequelize.define('Portfolio', {
     allowNull: false,
     unique: true,
     references: {
-      model: 'users',
+      model: 'Users',
       key: 'id'
     }
   },

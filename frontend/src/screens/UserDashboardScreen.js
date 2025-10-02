@@ -3,24 +3,46 @@ import { View, Text, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity
 import { useUser } from '../context/UserContext';
 import UserHeader from '../components/UserHeader';
 
-const BACKEND_URL = 'http://172.28.175.90:3000';
+const BACKEND_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000';
 
 const UserDashboardScreen = ({ navigation }) => {
   const { userId, token, user } = useUser();
-  const [loading, setLoading] = useState(false);
-  const [dashboardData, setDashboardData] = useState({
-    riskProfile: {
-      profileType: 'Moderate',
-      riskScore: 65,
-      profileDescription: {
-        description: 'You seek a balance between growth and stability. You can handle moderate volatility for potentially better long-term returns.'
+  const [loading, setLoading] = useState(true);
+  const [dashboardData, setDashboardData] = useState(null);
+
+  useEffect(() => {
+    fetchDashboardData();
+  }, [userId]);
+
+  const fetchDashboardData = async () => {
+    try {
+      setLoading(true);
+      console.log('🔍 Fetching dashboard data for userId:', userId);
+      console.log('🔍 Using token:', token ? 'Present' : 'Missing');
+      
+      const response = await fetch(`${BACKEND_URL}/api/dashboard/dashboard/${userId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      console.log('📡 Response status:', response.status);
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log('📊 Dashboard data received:', data);
+        setDashboardData(data.data);
+      } else {
+        const errorText = await response.text();
+        console.error('❌ Failed to fetch dashboard data:', response.status, errorText);
       }
-    },
-    portfolioScore: 12,
-    contestScore: 85,
-    totalQuizzes: 3,
-    totalTrades: 5
-  });
+    } catch (error) {
+      console.error('❌ Error fetching dashboard data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const getRiskColor = (profileType) => {
     switch (profileType) {
@@ -42,88 +64,81 @@ const UserDashboardScreen = ({ navigation }) => {
     );
   }
 
+  if (!dashboardData) {
+    return (
+      <View style={styles.container}>
+        <UserHeader navigation={navigation} />
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorText}>Failed to load dashboard data</Text>
+          <TouchableOpacity style={styles.retryButton} onPress={fetchDashboardData}>
+            <Text style={styles.retryButtonText}>Retry</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
       <UserHeader navigation={navigation} />
       
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <Text style={styles.title}>My Dashboard</Text>
-        <Text style={styles.subtitle}>Welcome back, {user?.name}!</Text>
+        <Text style={styles.subtitle}>Welcome back, {dashboardData.user?.name}!</Text>
 
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>🎯 Risk Profile</Text>
-          {dashboardData.riskProfile ? (
-            <View>
-              <View style={styles.riskHeader}>
-                <Text style={[styles.riskType, { color: getRiskColor(dashboardData.riskProfile.profileType) }]}>
-                  {dashboardData.riskProfile.profileType}
-                </Text>
-                <Text style={styles.riskScore}>Score: {dashboardData.riskProfile.riskScore}/100</Text>
-              </View>
-              <Text style={styles.riskDescription}>
-                {dashboardData.riskProfile.profileDescription?.description}
-              </Text>
-              <TouchableOpacity 
-                style={styles.actionButton}
-                onPress={() => navigation.navigate('Dashboard')}
-              >
-                <Text style={styles.actionButtonText}>View Details</Text>
-              </TouchableOpacity>
-            </View>
-          ) : (
-            <View>
-              <Text style={styles.noDataText}>No risk assessment completed</Text>
-              <TouchableOpacity 
-                style={styles.actionButton}
-                onPress={() => navigation.navigate('RiskQuiz')}
-              >
-                <Text style={styles.actionButtonText}>Take Risk Assessment</Text>
-              </TouchableOpacity>
-            </View>
-          )}
-        </View>
-
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>💼 Portfolio Performance</Text>
-          <View style={styles.scoreContainer}>
-            <Text style={styles.scoreValue}>{dashboardData.portfolioScore}%</Text>
-            <Text style={styles.scoreLabel}>Portfolio Growth</Text>
+        {/* Motivational Message */}
+        {dashboardData.motivationalMessage && (
+          <View style={styles.motivationCard}>
+            <Text style={styles.motivationIcon}>💡</Text>
+            <Text style={styles.motivationText}>{dashboardData.motivationalMessage}</Text>
           </View>
-          <View style={styles.statsRow}>
-            <View style={styles.statItem}>
-              <Text style={styles.statValue}>{dashboardData.totalTrades}</Text>
-              <Text style={styles.statLabel}>Total Trades</Text>
-            </View>
-            <View style={styles.statItem}>
-              <Text style={styles.statValue}>₹100,000</Text>
-              <Text style={styles.statLabel}>Starting Capital</Text>
-            </View>
+        )}
+
+        {/* Player Ranking */}
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>🏆 Player Ranking</Text>
+          <View style={styles.rankingContainer}>
+            <Text style={styles.rankingValue}>#{dashboardData.ranking?.currentRank || 'N/A'}</Text>
+            <Text style={styles.rankingLabel}>Out of {dashboardData.ranking?.totalUsers || 0} players</Text>
+            <Text style={styles.percentileText}>
+              Top {dashboardData.ranking?.percentile || 0}%
+            </Text>
           </View>
           <TouchableOpacity 
             style={styles.actionButton}
-            onPress={() => navigation.navigate('VirtualDemat')}
+            onPress={() => navigation.navigate('Leaderboard')}
           >
-            <Text style={styles.actionButtonText}>View Portfolio</Text>
+            <Text style={styles.actionButtonText}>View Leaderboard</Text>
           </TouchableOpacity>
         </View>
 
+
+        {/* Achievements */}
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>🏆 Contest Performance</Text>
+          <Text style={styles.cardTitle}>🏆 Achievements</Text>
           <View style={styles.scoreContainer}>
-            <Text style={styles.scoreValue}>{dashboardData.contestScore}</Text>
-            <Text style={styles.scoreLabel}>Total Quiz Points</Text>
+            <Text style={styles.scoreValue}>{dashboardData.achievements?.totalQuizzes || 0}</Text>
+            <Text style={styles.scoreLabel}>Quizzes Completed</Text>
           </View>
           <View style={styles.statsRow}>
             <View style={styles.statItem}>
-              <Text style={styles.statValue}>{dashboardData.totalQuizzes}</Text>
-              <Text style={styles.statLabel}>Quizzes Taken</Text>
+              <Text style={styles.statValue}>{dashboardData.achievements?.totalTrades || 0}</Text>
+              <Text style={styles.statLabel}>Total Trades</Text>
             </View>
             <View style={styles.statItem}>
-              <Text style={styles.statValue}>
-                {dashboardData.totalQuizzes > 0 ? Math.round(dashboardData.contestScore / dashboardData.totalQuizzes) : 0}
-              </Text>
-              <Text style={styles.statLabel}>Avg Score</Text>
+              <Text style={styles.statValue}>{dashboardData.achievements?.badges?.length || 0}</Text>
+              <Text style={styles.statLabel}>Badges Earned</Text>
             </View>
+          </View>
+          <View style={styles.badgesContainer}>
+            {dashboardData.achievements?.badges && Array.isArray(dashboardData.achievements.badges) 
+              ? dashboardData.achievements.badges.slice(0, 3).map((badge, index) => (
+                  <View key={index} style={styles.badge}>
+                    <Text style={styles.badgeText}>{badge.badgeType || 'Badge'}</Text>
+                  </View>
+                ))
+              : <Text style={styles.noDataText}>No badges earned yet</Text>
+            }
           </View>
           <TouchableOpacity 
             style={styles.actionButton}
@@ -295,6 +310,105 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#333',
     textAlign: 'center',
+  },
+  // New styles for additional components
+  rankingContainer: {
+    alignItems: 'center',
+    marginBottom: 15,
+  },
+  rankingValue: {
+    fontSize: 48,
+    fontWeight: 'bold',
+    color: '#ffd700',
+  },
+  rankingLabel: {
+    fontSize: 16,
+    color: '#666',
+    marginBottom: 5,
+  },
+  percentileText: {
+    fontSize: 14,
+    color: '#28a745',
+    fontWeight: '600',
+  },
+  performanceMetrics: {
+    marginTop: 10,
+    padding: 10,
+    backgroundColor: '#f8f9fa',
+    borderRadius: 8,
+  },
+  metricText: {
+    fontSize: 12,
+    color: '#666',
+    marginBottom: 5,
+  },
+  badgesContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginTop: 10,
+  },
+  badge: {
+    backgroundColor: '#007bff',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    marginRight: 8,
+    marginBottom: 8,
+  },
+  badgeText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  errorText: {
+    fontSize: 16,
+    color: '#dc3545',
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  retryButton: {
+    backgroundColor: '#007bff',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 8,
+  },
+  retryButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  noDataText: {
+    fontSize: 14,
+    color: '#999',
+    fontStyle: 'italic',
+  },
+  motivationCard: {
+    backgroundColor: '#e8f4fd',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 20,
+    borderLeftWidth: 4,
+    borderLeftColor: '#007bff',
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+  motivationIcon: {
+    fontSize: 24,
+    marginRight: 12,
+    marginTop: 2,
+  },
+  motivationText: {
+    flex: 1,
+    fontSize: 16,
+    color: '#333',
+    lineHeight: 22,
+    fontStyle: 'italic',
   },
 });
 

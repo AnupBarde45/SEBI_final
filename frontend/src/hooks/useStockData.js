@@ -10,134 +10,131 @@ export default function useStockData(symbol, timeRange = '1D') {
       setLoading(true);
       setError(null);
       try {
-        // Use realistic case study data
-        const mockData = generateMockData(symbol, timeRange);
-        setData({ 
-          c: mockData.prices,
-          timestamps: mockData.timestamps,
-          caseStudy: mockData.caseStudy
-        });
+        const intervalMap = {
+          '1H': '5min',
+          '1D': 'daily',
+          '1W': 'daily',
+          '1M': 'daily'
+        };
+        
+        const interval = intervalMap[timeRange] || 'daily';
+        const response = await fetch(`${process.env.EXPO_PUBLIC_API_URL}/api/stock/${symbol}?interval=${interval}`);
+        const alphaData = await response.json();
+        
+        const processedData = processAlphaVantageData(alphaData, timeRange);
+        setData(processedData);
+        
+        const generateFallbackData = (range) => {
+          const maxPoints = { '1H': 12, '1D': 24, '1W': 7, '1M': 30 }[range] || 24;
+          const prices = [];
+          const timestamps = [];
+          const basePrice = 150 + Math.random() * 100;
+          
+          for (let i = 0; i < maxPoints; i++) {
+            const date = new Date();
+            date.setHours(date.getHours() - (maxPoints - i));
+            timestamps.push(date);
+            const volatility = 0.02;
+            const change = (Math.random() - 0.5) * volatility;
+            const price = i === 0 ? basePrice : prices[i - 1] * (1 + change);
+            prices.push(Math.max(1, price));
+          }
+          
+          return {
+            c: prices, timestamps, symbol, isRealData: false,
+            lastRefreshed: new Date().toISOString(), timeZone: 'US/Eastern',
+            dataSource: 'Simulated Data (Network Error)', timeRange: range,
+            totalPoints: prices.length, dateRange: { start: timestamps[0], end: timestamps[timestamps.length - 1] }
+          };
+        };
       } catch (err) {
-        console.error('Error:', err);
-        setError(err.message);
+        console.error('API Error, using fallback:', err);
+        const fallbackData = generateFallbackData(timeRange);
+        setData(fallbackData);
       } finally {
         setLoading(false);
       }
     };
 
-    const generateMockData = (stockSymbol, range) => {
-      const dataPoints = {
-        '1H': 12,   // 12 points (5-minute intervals)
-        '1D': 24,   // 24 points (hourly)
-        '1W': 35,   // 35 points (daily for a week + extra)
-        '1M': 30    // 30 points (daily for a month)
-      }[range] || 24;
-      
-      const timeInterval = {
-        '1H': 5 * 60 * 1000,      // 5 minutes
-        '1D': 60 * 60 * 1000,     // 1 hour
-        '1W': 24 * 60 * 60 * 1000, // 1 day
-        '1M': 24 * 60 * 60 * 1000  // 1 day
-      }[range] || 60 * 60 * 1000;
-      
-      // Real case studies with actual events
-      const caseStudies = {
-        'AAPL': {
-          basePrice: 175,
-          event: 'iPhone 15 Launch Week (Sept 2023)',
-          scenario: 'launch_success',
-          startDate: '2023-09-12'
-        },
-        'GOOGL': {
-          basePrice: 125,
-          event: 'AI Bard vs ChatGPT Competition (Feb 2023)',
-          scenario: 'ai_competition',
-          startDate: '2023-02-06'
-        },
-        'MSFT': {
-          basePrice: 340,
-          event: 'ChatGPT Integration Announcement (Jan 2023)',
-          scenario: 'ai_boom',
-          startDate: '2023-01-23'
-        },
-        'TSLA': {
-          basePrice: 240,
-          event: 'Elon Musk Twitter Acquisition Impact (Oct 2022)',
-          scenario: 'ceo_distraction',
-          startDate: '2022-10-27'
-        },
-        'AMZN': {
-          basePrice: 95,
-          event: 'Holiday Shopping Season (Nov 2023)',
-          scenario: 'seasonal_boost',
-          startDate: '2023-11-20'
-        },
-        'NVDA': {
-          basePrice: 420,
-          event: 'AI Chip Demand Surge (May 2023)',
-          scenario: 'ai_hardware_boom',
-          startDate: '2023-05-24'
-        }
-      };
-      
-      const study = caseStudies[stockSymbol] || caseStudies['AAPL'];
+    const generateFallbackData = (range) => {
+      const maxPoints = { '1H': 12, '1D': 24, '1W': 7, '1M': 30 }[range] || 24;
       const prices = [];
       const timestamps = [];
-      let currentPrice = study.basePrice;
+      const basePrice = 150 + Math.random() * 100;
       
-      // Generate realistic price movements based on actual scenarios
-      for (let i = 0; i < dataPoints; i++) {
-        let change = 0;
-        
-        switch (study.scenario) {
-          case 'launch_success':
-            // iPhone launch: initial excitement, then stabilization
-            if (i < 5) change = Math.random() * 8 - 2; // Big gains early
-            else if (i < 15) change = Math.random() * 4 - 2; // Moderate movement
-            else change = Math.random() * 2 - 1; // Stabilization
-            break;
-            
-          case 'ai_competition':
-            // Google AI: volatile due to competition
-            change = (Math.random() - 0.5) * 12; // High volatility
-            break;
-            
-          case 'ai_boom':
-            // Microsoft AI: steady upward trend
-            change = Math.random() * 6 - 1; // Mostly positive
-            break;
-            
-          case 'ceo_distraction':
-            // Tesla CEO issues: declining trend
-            change = Math.random() * 4 - 6; // Mostly negative
-            break;
-            
-          case 'seasonal_boost':
-            // Amazon holiday: gradual increase
-            change = Math.random() * 5 - 1.5; // Gradual upward
-            break;
-            
-          case 'ai_hardware_boom':
-            // NVIDIA AI chips: explosive growth
-            if (i < 10) change = Math.random() * 15 - 2; // Massive gains
-            else change = Math.random() * 8 - 3; // Continued growth
-            break;
-            
-          default:
-            change = (Math.random() - 0.5) * 4;
-        }
-        
-        currentPrice += change;
-        currentPrice = Math.max(currentPrice, study.basePrice * 0.7); // Floor price
-        prices.push(currentPrice);
-        
-        // Generate realistic timestamps based on range
-        const startDate = new Date(study.startDate);
-        const timestamp = new Date(startDate.getTime() + (i * timeInterval));
-        timestamps.push(timestamp);
+      for (let i = 0; i < maxPoints; i++) {
+        const date = new Date();
+        date.setHours(date.getHours() - (maxPoints - i));
+        timestamps.push(date);
+        const volatility = 0.02;
+        const change = (Math.random() - 0.5) * volatility;
+        const price = i === 0 ? basePrice : prices[i - 1] * (1 + change);
+        prices.push(Math.max(1, price));
       }
       
-      return { prices, timestamps, caseStudy: study };
+      return {
+        c: prices, timestamps, symbol, isRealData: false,
+        lastRefreshed: new Date().toISOString(), timeZone: 'US/Eastern',
+        dataSource: 'Simulated Data (API Rate Limited)', timeRange: range,
+        totalPoints: prices.length, dateRange: { start: timestamps[0], end: timestamps[timestamps.length - 1] }
+      };
+    };
+
+    const processAlphaVantageData = (alphaData, range) => {
+      // Check for API rate limit or errors
+      if (!alphaData || alphaData['Error Message'] || alphaData['Note'] || alphaData['Information']) {
+        console.log('Alpha Vantage API limited, using fallback data');
+        return generateFallbackData(range);
+      }
+      
+      let timeSeries;
+      if (alphaData['Time Series (5min)']) timeSeries = alphaData['Time Series (5min)'];
+      else if (alphaData['Time Series (Daily)']) timeSeries = alphaData['Time Series (Daily)'];
+      else if (alphaData['Weekly Time Series']) timeSeries = alphaData['Weekly Time Series'];
+      else if (alphaData['Monthly Time Series']) timeSeries = alphaData['Monthly Time Series'];
+      else {
+        console.log('No time series found, using fallback');
+        return generateFallbackData(range);
+      }
+      
+      const dates = Object.keys(timeSeries).sort();
+      const maxPoints = {
+        '1H': 12,
+        '1D': 24,
+        '1W': 7,
+        '1M': 30
+      }[range] || 24;
+      
+      const recentDates = dates.slice(-maxPoints);
+      const prices = [];
+      const timestamps = [];
+      
+      recentDates.forEach(date => {
+        const dayData = timeSeries[date];
+        prices.push(parseFloat(dayData['4. close']));
+        timestamps.push(new Date(date));
+      });
+      
+      const metaData = alphaData['Meta Data'];
+      const isRealData = !!metaData;
+      const lastRefreshed = metaData ? metaData['3. Last Refreshed'] : null;
+      const timeZone = metaData ? metaData['5. Time Zone'] : 'Unknown';
+      
+      return {
+        c: prices,
+        timestamps: timestamps,
+        symbol: metaData ? metaData['2. Symbol'] : symbol,
+        isRealData: isRealData,
+        lastRefreshed: lastRefreshed,
+        timeZone: timeZone,
+        dataSource: 'Alpha Vantage (Real Market Data)',
+        timeRange: range,
+        totalPoints: prices.length,
+        dateRange: {
+          start: timestamps[0],
+          end: timestamps[timestamps.length - 1]
+        }
+      };
     };
 
     if (symbol) {

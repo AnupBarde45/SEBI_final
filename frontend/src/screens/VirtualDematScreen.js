@@ -2,18 +2,14 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, FlatList, ActivityIndicator, Alert, KeyboardAvoidingView, Platform, Dimensions } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useUser } from '../context/UserContext';
-import { PieChart } from 'react-native-chart-kit'; // Import PieChart
+import { PieChart } from 'react-native-chart-kit';
+import UserHeader from '../components/UserHeader';
 
 import VIRTUAL_TRADING_INSIGHTS from '../data/virtualTradingInsights.json';
 
-
-// --- Mock Backend URL ---
-const BACKEND_URL = 'http://192.168.31.96:3001'; // Using your confirmed IP
-
-// --- Local Storage Key for Virtual Portfolio ---
+const BACKEND_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000';
 const VIRTUAL_PORTFOLIO_STORAGE_KEY = 'saralnivesh_virtual_portfolio';
-
-const screenWidth = Dimensions.get('window').width; // Get screen width for chart responsiveness
+const screenWidth = Dimensions.get('window').width;
 
 function VirtualDematScreen({ navigation }) {
   const { userId } = useUser();
@@ -26,10 +22,9 @@ function VirtualDematScreen({ navigation }) {
   const [tradeQuantity, setTradeQuantity] = useState('');
   const [tradeLoading, setTradeLoading] = useState(false);
   const [currentHoldingsPrices, setCurrentHoldingsPrices] = useState({});
-  const [showTradeImpact, setShowTradeImpact] = useState(false); // New state for trade impact animation
-  const [tradeImpactMessage, setTradeImpactMessage] = useState(''); // Message for trade impact
+  const [showTradeImpact, setShowTradeImpact] = useState(false);
+  const [tradeImpactMessage, setTradeImpactMessage] = useState('');
 
-  // --- Load Portfolio on Component Mount ---
   useEffect(() => {
     async function loadPortfolio() {
       try {
@@ -39,19 +34,14 @@ function VirtualDematScreen({ navigation }) {
         if (storedPortfolio) {
           initialPortfolio = JSON.parse(storedPortfolio);
         } else {
-          const response = await fetch(`${BACKEND_URL}/api/virtual-trade/initial-balance`);
-          if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.error || 'Failed to fetch initial balance.');
-          }
-          const data = await response.json();
-          initialPortfolio = { balance: data.initialBalance, holdings: {} };
+          initialPortfolio = { balance: 100000, holdings: {} };
           await AsyncStorage.setItem(VIRTUAL_PORTFOLIO_STORAGE_KEY, JSON.stringify(initialPortfolio));
         }
         setPortfolio(initialPortfolio);
       } catch (err) {
         console.error("VIRTUAL_DEMAT_ERROR: Failed to load portfolio:", err);
         setError(err.message || "Failed to load your virtual portfolio.");
+        setPortfolio({ balance: 100000, holdings: {} });
       } finally {
         setLoading(false);
       }
@@ -59,7 +49,6 @@ function VirtualDematScreen({ navigation }) {
     loadPortfolio();
   }, []);
 
-  // --- Save Portfolio Whenever It Changes ---
   useEffect(() => {
     if (portfolio) {
       AsyncStorage.setItem(VIRTUAL_PORTFOLIO_STORAGE_KEY, JSON.stringify(portfolio))
@@ -68,20 +57,14 @@ function VirtualDematScreen({ navigation }) {
     }
   }, [portfolio]);
 
-  // --- Fetch Stock Price for Trading ---
   const fetchStockPrice = useCallback(async (symbol) => {
     if (!symbol) return;
     setPriceLoading(true);
     setError('');
     setCurrentPrice(null);
     try {
-      const response = await fetch(`${BACKEND_URL}/api/virtual-trade/price/${symbol}`);
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to fetch stock price.');
-      }
-      const data = await response.json();
-      setCurrentPrice(data.price);
+      const mockPrice = Math.random() * 1000 + 500;
+      setCurrentPrice(mockPrice);
     } catch (err) {
       console.error("VIRTUAL_DEMAT_ERROR: Failed to fetch price:", err);
       setError(err.message || "Could not fetch stock price.");
@@ -90,7 +73,6 @@ function VirtualDematScreen({ navigation }) {
     }
   }, []);
 
-  // --- Fetch Latest Prices for All Holdings (for P&L calculation) ---
   const fetchHoldingsPrices = useCallback(async () => {
     if (!portfolio || !portfolio.holdings || Object.keys(portfolio.holdings).length === 0) return;
 
@@ -98,50 +80,80 @@ function VirtualDematScreen({ navigation }) {
     const newPrices = {};
     for (const symbol of symbols) {
       try {
-        const response = await fetch(`${BACKEND_URL}/api/virtual-trade/price/${symbol}`);
-        if (response.ok) {
-          const data = await response.json();
-          newPrices[symbol] = data.price;
-        } else {
-          console.warn(`VIRTUAL_DEMAT_WARN: Could not fetch latest price for ${symbol}`);
-          newPrices[symbol] = portfolio.holdings[symbol].averagePrice; // Fallback to avg price
-        }
+        const mockPrice = Math.random() * 1000 + 500;
+        newPrices[symbol] = mockPrice;
       } catch (err) {
         console.error(`VIRTUAL_DEMAT_ERROR: Error fetching price for P&L of ${symbol}:`, err.message);
-        newPrices[symbol] = portfolio.holdings[symbol].averagePrice; // Fallback to avg price
+        newPrices[symbol] = portfolio.holdings[symbol].averagePrice;
       }
     }
     setCurrentHoldingsPrices(newPrices);
   }, [portfolio]);
 
-  // Fetch holdings prices periodically or on focus
   useEffect(() => {
     fetchHoldingsPrices();
-    const interval = setInterval(fetchHoldingsPrices, 60000); // Refresh every 60 seconds
+    const interval = setInterval(fetchHoldingsPrices, 60000);
     return () => clearInterval(interval);
   }, [fetchHoldingsPrices]);
 
-
-  // --- Get Guru Insight ---
-  const getGuruInsight = useCallback((tradeType, newHoldings) => {
-    let insight = VIRTUAL_TRADING_INSIGHTS.find(i => i.type === tradeType && i.condition === 'generic');
-
-    if (tradeType === 'BUY') {
-      // Check for diversification condition (simple check: if only 1 holding after buy)
-      if (Object.keys(newHoldings).length === 1 && Object.values(newHoldings)[0].quantity > 0) {
-        insight = VIRTUAL_TRADING_INSIGHTS.find(i => i.type === 'BUY' && i.condition === 'not_diversified') || insight;
+  const getGuruInsight = useCallback(async (tradeType, newHoldings, quantity, tradeValue) => {
+    try {
+      const [tipsResponse, rulesResponse] = await Promise.all([
+        fetch(`${BACKEND_URL}/api/admin/trading-tips`),
+        fetch(`${BACKEND_URL}/api/admin/trading-rules`)
+      ]);
+      
+      const tips = await tipsResponse.json();
+      const rules = await rulesResponse.json();
+      
+      // Check trading rules first (higher priority)
+      const portfolioCount = Object.keys(newHoldings).length;
+      
+      for (const rule of rules) {
+        let shouldTrigger = false;
+        
+        if (rule.rule_type === 'quantity') {
+          shouldTrigger = evaluateCondition(quantity, rule.comparison_operator, rule.threshold_value);
+        } else if (rule.rule_type === 'value') {
+          shouldTrigger = evaluateCondition(tradeValue, rule.comparison_operator, rule.threshold_value);
+        } else if (rule.rule_type === 'portfolio_count') {
+          shouldTrigger = evaluateCondition(portfolioCount, rule.comparison_operator, rule.threshold_value);
+        }
+        
+        if (shouldTrigger) {
+          return rule.trigger_message;
+        }
       }
-    } else if (tradeType === 'SELL') {
-      // Simple check for stop-loss idea (always suggest after a sell for now)
-      insight = VIRTUAL_TRADING_INSIGHTS.find(i => i.type === 'SELL' && i.condition === 'no_stoploss_set') || insight;
+      
+      // Fallback to regular tips
+      let insight = tips.find(i => i.trade_action.toLowerCase() === tradeType.toLowerCase() && i.scenario_type === 'general');
+
+      if (tradeType === 'BUY') {
+        if (Object.keys(newHoldings).length === 1 && Object.values(newHoldings)[0].quantity > 0) {
+          insight = tips.find(i => i.trade_action.toLowerCase() === 'buy' && i.scenario_type === 'profit') || insight;
+        }
+      } else if (tradeType === 'SELL') {
+        insight = tips.find(i => i.trade_action.toLowerCase() === 'sell' && i.scenario_type === 'loss') || insight;
+      }
+
+      return insight ? insight.tip_message : "Good trade! Keep learning and refining your strategy.";
+    } catch (error) {
+      console.error('Failed to fetch trading insights:', error);
+      return "Good trade! Keep learning and refining your strategy.";
     }
-    // Add more complex conditions here later
-
-    return insight ? insight.message : "Good trade! Keep learning and refining your strategy.";
   }, []);
+  
+  const evaluateCondition = (value, operator, threshold) => {
+    switch (operator) {
+      case '>': return value > threshold;
+      case '<': return value < threshold;
+      case '>=': return value >= threshold;
+      case '<=': return value <= threshold;
+      case '=': return value === threshold;
+      default: return false;
+    }
+  };
 
-
-  // --- Execute Trade (BUY/SELL) ---
   const executeTrade = useCallback(async (type) => {
     if (!searchSymbol || !tradeQuantity || currentPrice === null) {
       Alert.alert("Missing Info", "Please search for a stock and enter a quantity.");
@@ -156,38 +168,48 @@ function VirtualDematScreen({ navigation }) {
     setTradeLoading(true);
     setError('');
     try {
-      const response = await fetch(`${BACKEND_URL}/api/virtual-trade/execute`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userId: userId,
-          symbol: searchSymbol,
-          quantity: quantity,
-          type: type,
-          currentPortfolio: portfolio,
-        }),
-      });
+      const tradeValue = currentPrice * quantity;
+      let newBalance = portfolio.balance;
+      let newHoldings = { ...portfolio.holdings };
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Trade failed.');
+      if (type === 'BUY') {
+        if (newBalance < tradeValue) {
+          throw new Error(`Insufficient balance. Need ₹${tradeValue.toFixed(2)}, have ₹${newBalance.toFixed(2)}.`);
+        }
+        newBalance -= tradeValue;
+        newHoldings[searchSymbol] = newHoldings[searchSymbol] || { quantity: 0, averagePrice: 0 };
+
+        const existingTotalValue = newHoldings[searchSymbol].quantity * newHoldings[searchSymbol].averagePrice;
+        const newTotalValue = existingTotalValue + tradeValue;
+        const newTotalQuantity = newHoldings[searchSymbol].quantity + quantity;
+
+        newHoldings[searchSymbol].quantity = newTotalQuantity;
+        newHoldings[searchSymbol].averagePrice = newTotalQuantity > 0 ? newTotalValue / newTotalQuantity : 0;
+      } else if (type === 'SELL') {
+        if (!newHoldings[searchSymbol] || newHoldings[searchSymbol].quantity < quantity) {
+          throw new Error(`Insufficient shares of ${searchSymbol} to sell. Have ${newHoldings[searchSymbol]?.quantity || 0}.`);
+        }
+        newBalance += tradeValue;
+        newHoldings[searchSymbol].quantity -= quantity;
+
+        if (newHoldings[searchSymbol].quantity === 0) {
+          delete newHoldings[searchSymbol];
+        }
       }
 
-      const data = await response.json();
       setPortfolio({
-        balance: data.newBalance,
-        holdings: data.newHoldings,
+        balance: parseFloat(newBalance.toFixed(2)),
+        holdings: newHoldings,
       });
 
-      // --- Visualized Impact & Guru Insights ---
-      const insightMessage = getGuruInsight(type, data.newHoldings);
-      setTradeImpactMessage(`${type} ${quantity} shares of ${searchSymbol} at ₹${data.tradeDetails.price.toFixed(2)}`);
+      const insightMessage = await getGuruInsight(type, newHoldings, quantity, tradeValue);
+      setTradeImpactMessage(`${type} ${quantity} shares of ${searchSymbol} at ₹${currentPrice.toFixed(2)}`);
       setShowTradeImpact(true);
 
       setTimeout(() => {
         setShowTradeImpact(false);
         Alert.alert("Trade Successful!", `${tradeImpactMessage}\n\n${insightMessage}`);
-      }, 2000); // Show impact for 2 seconds before alert
+      }, 2000);
 
       setTradeQuantity('');
       fetchHoldingsPrices();
@@ -200,7 +222,6 @@ function VirtualDematScreen({ navigation }) {
     }
   }, [userId, searchSymbol, tradeQuantity, currentPrice, portfolio, fetchHoldingsPrices, getGuruInsight, tradeImpactMessage]);
 
-
   if (loading || !portfolio) {
     return (
       <View style={styles.loadingContainer}>
@@ -210,11 +231,10 @@ function VirtualDematScreen({ navigation }) {
     );
   }
 
-  // --- Calculate Portfolio Values ---
   let totalHoldingsCurrentValue = 0;
   let totalHoldingsInvestedValue = 0;
   const portfolioAllocationData = [];
-  const chartColors = ['#007bff', '#28a745', '#ffc107', '#dc3545', '#6c757d', '#17a2b8', '#6610f2', '#fd7e14', '#e83e8c', '#6f42c1']; // More chart colors
+  const chartColors = ['#007bff', '#28a745', '#ffc107', '#dc3545', '#6c757d', '#17a2b8', '#6610f2', '#fd7e14', '#e83e8c', '#6f42c1'];
 
   const holdingsArray = portfolio.holdings ? Object.keys(portfolio.holdings).map(symbol => ({ symbol, ...portfolio.holdings[symbol] })) : [];
 
@@ -225,7 +245,7 @@ function VirtualDematScreen({ navigation }) {
     totalHoldingsCurrentValue += currentValue;
     totalHoldingsInvestedValue += holding.quantity * holding.averagePrice;
 
-    if (currentValue > 0) { // Only add to chart if value is positive
+    if (currentValue > 0) {
       portfolioAllocationData.push({
         name: holding.symbol,
         population: currentValue,
@@ -236,7 +256,6 @@ function VirtualDematScreen({ navigation }) {
     }
   });
 
-  // Add cash to portfolio allocation if it's significant
   if (portfolio.balance > 0) {
     portfolioAllocationData.push({
       name: 'Cash',
@@ -249,7 +268,6 @@ function VirtualDematScreen({ navigation }) {
 
   const totalHoldingsPnL = totalHoldingsCurrentValue - totalHoldingsInvestedValue;
   const totalPortfolioValue = portfolio.balance + totalHoldingsCurrentValue;
-
 
   const renderHoldingItem = ({ item }) => {
     if (!item || typeof item.quantity === 'undefined' || item.quantity === null || typeof item.averagePrice === 'undefined' || item.averagePrice === null) {
@@ -290,166 +308,169 @@ function VirtualDematScreen({ navigation }) {
   };
 
   return (
-    <KeyboardAvoidingView
-      style={styles.fullScreenContainer}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 20}
-    >
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        <Text style={styles.headerTitle}>Virtual Trading Account</Text>
-        <Text style={styles.headerSubtitle}>Practice trading with virtual money!</Text>
+    <View style={styles.container}>
+      <UserHeader navigation={navigation} />
+      
+      <KeyboardAvoidingView
+        style={styles.fullScreenContainer}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 20}
+      >
+        <ScrollView contentContainerStyle={styles.scrollContent}>
+          <Text style={styles.headerTitle}>Virtual Trading Account</Text>
+          <Text style={styles.headerSubtitle}>Practice trading with virtual money!</Text>
 
-        {error && <Text style={styles.errorText}>Error: {error}</Text>}
+          {error && <Text style={styles.errorText}>Error: {error}</Text>}
 
-        {/* --- Account Summary --- */}
-        <View style={styles.card}>
-          <Text style={styles.cardHeader}>Account Summary</Text>
-          <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Virtual Balance:</Text>
-            <Text style={styles.summaryValue}>₹{portfolio.balance.toFixed(2)}</Text>
-          </View>
-          <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Total Invested Value:</Text>
-            <Text style={styles.summaryValue}>₹{totalHoldingsInvestedValue.toFixed(2)}</Text>
-          </View>
-          <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Total Holdings Current Value:</Text>
-            <Text style={styles.summaryValue}>₹{totalHoldingsCurrentValue.toFixed(2)}</Text>
-          </View>
-          <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Total P&L:</Text>
-            <Text style={[styles.summaryValue, { color: totalHoldingsPnL > 0 ? '#28a745' : totalHoldingsPnL < 0 ? '#dc3545' : '#6c757d' }]}>
-              ₹{totalHoldingsPnL.toFixed(2)}
-            </Text>
-          </View>
-          <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Total Portfolio Value:</Text>
-            <Text style={styles.summaryValue}>₹{totalPortfolioValue.toFixed(2)}</Text>
-          </View>
-        </View>
-
-        {/* --- Portfolio Allocation Chart --- */}
-        {portfolioAllocationData.length > 0 && totalPortfolioValue > 0 && (
           <View style={styles.card}>
-            <Text style={styles.cardHeader}>Portfolio Allocation</Text>
-            <PieChart
-              data={portfolioAllocationData}
-              width={screenWidth - 60}
-              height={200}
-              chartConfig={{
-                backgroundColor: '#ffffff',
-                backgroundGradientFrom: '#ffffff',
-                backgroundGradientTo: '#ffffff',
-                color: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
-                labelColor: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
-              }}
-              accessor="population"
-              backgroundColor="transparent"
-              paddingLeft="15"
-              hasLegend={false}
-            />
-            <View style={styles.legendContainer}>
-              {portfolioAllocationData.map((item, index) => (
-                <View key={index} style={styles.legendItem}>
-                  <View style={[styles.legendColorBox, { backgroundColor: item.color }]} />
-                  <Text style={styles.legendText}>{item.name} ({((item.population / totalPortfolioValue) * 100).toFixed(1)}%)</Text>
-                </View>
-              ))}
+            <Text style={styles.cardHeader}>Account Summary</Text>
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryLabel}>Virtual Balance:</Text>
+              <Text style={styles.summaryValue}>₹{portfolio.balance.toFixed(2)}</Text>
             </View>
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryLabel}>Total Invested Value:</Text>
+              <Text style={styles.summaryValue}>₹{totalHoldingsInvestedValue.toFixed(2)}</Text>
+            </View>
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryLabel}>Total Holdings Current Value:</Text>
+              <Text style={styles.summaryValue}>₹{totalHoldingsCurrentValue.toFixed(2)}</Text>
+            </View>
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryLabel}>Total P&L:</Text>
+              <Text style={[styles.summaryValue, { color: totalHoldingsPnL > 0 ? '#28a745' : totalHoldingsPnL < 0 ? '#dc3545' : '#6c757d' }]}>
+                ₹{totalHoldingsPnL.toFixed(2)}
+              </Text>
+            </View>
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryLabel}>Total Portfolio Value:</Text>
+              <Text style={styles.summaryValue}>₹{totalPortfolioValue.toFixed(2)}</Text>
+            </View>
+          </View>
+
+          {portfolioAllocationData.length > 0 && totalPortfolioValue > 0 && (
+            <View style={styles.card}>
+              <Text style={styles.cardHeader}>Portfolio Allocation</Text>
+              <PieChart
+                data={portfolioAllocationData}
+                width={screenWidth - 60}
+                height={200}
+                chartConfig={{
+                  backgroundColor: '#ffffff',
+                  backgroundGradientFrom: '#ffffff',
+                  backgroundGradientTo: '#ffffff',
+                  color: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
+                  labelColor: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
+                }}
+                accessor="population"
+                backgroundColor="transparent"
+                paddingLeft="15"
+                hasLegend={false}
+              />
+              <View style={styles.legendContainer}>
+                {portfolioAllocationData.map((item, index) => (
+                  <View key={index} style={styles.legendItem}>
+                    <View style={[styles.legendColorBox, { backgroundColor: item.color }]} />
+                    <Text style={styles.legendText}>{item.name} ({((item.population / totalPortfolioValue) * 100).toFixed(1)}%)</Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+          )}
+
+          <View style={styles.card}>
+            <Text style={styles.cardHeader}>Trade Stocks</Text>
+            <TextInput
+              style={styles.textInput}
+              placeholder="Enter Stock Symbol (e.g., RELIANCE.NS)"
+              placeholderTextColor="#6c757d"
+              value={searchSymbol}
+              onChangeText={setSearchSymbol}
+              autoCapitalize="characters"
+              onSubmitEditing={() => fetchStockPrice(searchSymbol)}
+              returnKeyType="search"
+              editable={!priceLoading && !tradeLoading}
+            />
+            <TouchableOpacity
+              style={[styles.fetchPriceButton, priceLoading ? styles.fetchPriceButtonDisabled : {}]}
+              onPress={() => fetchStockPrice(searchSymbol)}
+              disabled={!searchSymbol || priceLoading || tradeLoading}
+            >
+              {priceLoading ? (
+                <ActivityIndicator color="#ffffff" size="small" />
+              ) : (
+                <Text style={styles.fetchPriceButtonText}>Get Price</Text>
+              )}
+            </TouchableOpacity>
+
+            {currentPrice !== null && (
+              <View style={styles.priceDisplay}>
+                <Text style={styles.priceText}>Current Price for {searchSymbol}:</Text>
+                <Text style={styles.priceValue}>₹{currentPrice.toFixed(2)}</Text>
+              </View>
+            )}
+
+            {currentPrice !== null && (
+              <View style={styles.tradeInputGroup}>
+                <TextInput
+                  style={styles.tradeQuantityInput}
+                  placeholder="Quantity"
+                  placeholderTextColor="#6c757d"
+                  keyboardType="numeric"
+                  value={tradeQuantity}
+                  onChangeText={setTradeQuantity}
+                  editable={!tradeLoading}
+                />
+                <TouchableOpacity
+                  style={[styles.tradeButton, styles.buyButton, tradeLoading || !tradeQuantity || parseInt(tradeQuantity, 10) <= 0 ? styles.tradeButtonDisabled : {}]}
+                  onPress={() => executeTrade('BUY')}
+                  disabled={tradeLoading || !tradeQuantity || parseInt(tradeQuantity, 10) <= 0}
+                >
+                  <Text style={styles.tradeButtonText}>BUY</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.tradeButton, styles.sellButton, tradeLoading || !tradeQuantity || parseInt(tradeQuantity, 10) <= 0 ? styles.tradeButtonDisabled : {}]}
+                  onPress={() => executeTrade('SELL')}
+                  disabled={tradeLoading || !tradeQuantity || parseInt(tradeQuantity, 10) <= 0}
+                >
+                  <Text style={styles.tradeButtonText}>SELL</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
+
+          <View style={styles.card}>
+            <Text style={styles.cardHeader}>Your Holdings</Text>
+            {holdingsArray.length > 0 ? (
+              <FlatList
+                data={holdingsArray}
+                renderItem={renderHoldingItem}
+                keyExtractor={(item) => item.symbol}
+                scrollEnabled={false}
+              />
+            ) : (
+              <Text style={styles.noHoldingsText}>No current holdings. Start trading!</Text>
+            )}
+          </View>
+
+          <View style={{ height: 50 }} />
+        </ScrollView>
+
+        {showTradeImpact && (
+          <View style={styles.tradeImpactOverlay}>
+            <Text style={styles.tradeImpactText}>🎉 {tradeImpactMessage}</Text>
           </View>
         )}
-
-        {/* --- Stock Search & Trade --- */}
-        <View style={styles.card}>
-          <Text style={styles.cardHeader}>Trade Stocks</Text>
-          <TextInput
-            style={styles.textInput}
-            placeholder="Enter Stock Symbol (e.g., RELIANCE.NS)"
-            placeholderTextColor="#6c757d"
-            value={searchSymbol}
-            onChangeText={setSearchSymbol}
-            autoCapitalize="characters"
-            onSubmitEditing={() => fetchStockPrice(searchSymbol)}
-            returnKeyType="search"
-            editable={!priceLoading && !tradeLoading}
-          />
-          <TouchableOpacity
-            style={[styles.fetchPriceButton, priceLoading ? styles.fetchPriceButtonDisabled : {}]}
-            onPress={() => fetchStockPrice(searchSymbol)}
-            disabled={!searchSymbol || priceLoading || tradeLoading}
-          >
-            {priceLoading ? (
-              <ActivityIndicator color="#ffffff" size="small" />
-            ) : (
-              <Text style={styles.fetchPriceButtonText}>Get Price</Text>
-            )}
-          </TouchableOpacity>
-
-          {currentPrice !== null && (
-            <View style={styles.priceDisplay}>
-              <Text style={styles.priceText}>Current Price for {searchSymbol}:</Text>
-              <Text style={styles.priceValue}>₹{currentPrice.toFixed(2)}</Text>
-            </View>
-          )}
-
-          {currentPrice !== null && (
-            <View style={styles.tradeInputGroup}>
-              <TextInput
-                style={styles.tradeQuantityInput}
-                placeholder="Quantity"
-                placeholderTextColor="#6c757d"
-                keyboardType="numeric"
-                value={tradeQuantity}
-                onChangeText={setTradeQuantity}
-                editable={!tradeLoading}
-              />
-              <TouchableOpacity
-                style={[styles.tradeButton, styles.buyButton, tradeLoading || !tradeQuantity || parseInt(tradeQuantity, 10) <= 0 ? styles.tradeButtonDisabled : {}]}
-                onPress={() => executeTrade('BUY')}
-                disabled={tradeLoading || !tradeQuantity || parseInt(tradeQuantity, 10) <= 0}
-              >
-                <Text style={styles.tradeButtonText}>BUY</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.tradeButton, styles.sellButton, tradeLoading || !tradeQuantity || parseInt(tradeQuantity, 10) <= 0 ? styles.tradeButtonDisabled : {}]}
-                onPress={() => executeTrade('SELL')}
-                disabled={tradeLoading || !tradeQuantity || parseInt(tradeQuantity, 10) <= 0}
-              >
-                <Text style={styles.tradeButtonText}>SELL</Text>
-              </TouchableOpacity>
-            </View>
-          )}
-        </View>
-
-        {/* --- Current Holdings --- */}
-        <View style={styles.card}>
-          <Text style={styles.cardHeader}>Your Holdings</Text>
-          {holdingsArray.length > 0 ? (
-            <FlatList
-              data={holdingsArray}
-              renderItem={renderHoldingItem}
-              keyExtractor={(item) => item.symbol}
-              scrollEnabled={false}
-            />
-          ) : (
-            <Text style={styles.noHoldingsText}>No current holdings. Start trading!</Text>
-          )}
-        </View>
-
-        <View style={{ height: 50 }} />
-      </ScrollView>
-
-      {/* --- Trade Impact Overlay --- */}
-      {showTradeImpact && (
-        <View style={styles.tradeImpactOverlay}>
-          <Text style={styles.tradeImpactText}>🎉 {tradeImpactMessage}</Text>
-        </View>
-      )}
-    </KeyboardAvoidingView>
+      </KeyboardAvoidingView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#f0f4f8',
+  },
   fullScreenContainer: {
     flex: 1,
     backgroundColor: '#f0f4f8',
@@ -474,6 +495,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: 15,
+    paddingTop: 100,
     paddingBottom: Platform.OS === 'android' ? 20 : 10,
   },
   headerTitle: {
@@ -593,11 +615,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   buyButton: {
-    backgroundColor: '#28a745', // Green for BUY
+    backgroundColor: '#28a745',
     marginRight: 5,
   },
   sellButton: {
-    backgroundColor: '#dc3545', // Red for SELL
+    backgroundColor: '#dc3545',
     marginLeft: 5,
   },
   tradeButtonDisabled: {
@@ -657,7 +679,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     paddingVertical: 10,
   },
-  // --- Chart specific styles ---
   legendContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -680,13 +701,12 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#4a5568',
   },
-  // --- NEW: Trade Impact Overlay Styles ---
   tradeImpactOverlay: {
     position: 'absolute',
-    bottom: 100, // Position above the input area
+    bottom: 100,
     left: 20,
     right: 20,
-    backgroundColor: 'rgba(0, 123, 255, 0.9)', // Semi-transparent blue
+    backgroundColor: 'rgba(0, 123, 255, 0.9)',
     borderRadius: 15,
     padding: 15,
     alignItems: 'center',
@@ -696,7 +716,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 10,
-    zIndex: 1000, // Ensure it's on top
+    zIndex: 1000,
   },
   tradeImpactText: {
     color: '#ffffff',

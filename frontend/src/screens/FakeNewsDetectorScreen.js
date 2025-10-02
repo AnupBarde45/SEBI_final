@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, Activi
 
 // --- Mock Backend URL (REPLACE with your actual backend URL later!) ---
 // IMPORTANT: Change this to your backend's IP address if running on device!
-const BACKEND_URL = 'http://192.168.31.96:3001'; // Using your confirmed IP
+const BACKEND_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000';
 
 
 function FakeNewsDetectorScreen({ navigation }) {

@@ -40,17 +40,33 @@ router.post('/submit', authenticateToken, async (req, res) => {
 
 router.get('/leaderboard', async (req, res) => {
   try {
-    const leaderboard = await UserProgress.findAll({
+    // Get all quiz attempts with user info
+    const allQuizzes = await QuizAttempt.findAll({
       include: [{
         model: User,
-        attributes: ['name', 'email']
+        attributes: ['id', 'name', 'email']
       }],
-      order: [['totalQuizScore', 'DESC']],
-      limit: 10,
-      where: {
-        totalQuizScore: { [require('sequelize').Op.gt]: 0 }
+      order: [['score', 'DESC']],
+      attributes: ['userId', 'score']
+    });
+
+    // Get unique users with their highest score
+    const userScores = new Map();
+    allQuizzes.forEach(quiz => {
+      if (!userScores.has(quiz.userId) || userScores.get(quiz.userId).latestScore < quiz.score) {
+        userScores.set(quiz.userId, {
+          userId: quiz.userId,
+          User: quiz.User,
+          latestScore: quiz.score,
+          completedQuizzes: 1,
+          totalTrades: 0
+        });
       }
     });
+
+    const leaderboard = Array.from(userScores.values())
+      .sort((a, b) => b.latestScore - a.latestScore)
+      .slice(0, 10);
     
     res.json(leaderboard);
   } catch (error) {

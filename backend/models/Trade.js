@@ -11,7 +11,7 @@ const Trade = sequelize.define('Trade', {
     type: DataTypes.UUID,
     allowNull: false,
     references: {
-      model: 'users',
+      model: 'Users',
       key: 'id'
     }
   },
@@ -36,7 +36,7 @@ const Trade = sequelize.define('Trade', {
     allowNull: false
   }
 }, {
-  tableName: 'Trades',
+  tableName: 'trades',
   timestamps: true
 });
 

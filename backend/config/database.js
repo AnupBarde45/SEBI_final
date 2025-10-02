@@ -1,28 +1,19 @@
-const JSONVectorDatabase = require('./jsonDatabase');
+const { Sequelize } = require('sequelize');
 
-class VectorDatabase {
-    constructor() {
-        this.db = new JSONVectorDatabase();
-    }
+const sequelize = new Sequelize({
+  dialect: 'postgres',
+  host: 'localhost',
+  port: 5432,
+  database: 'final',
+  username: 'postgres',
+  password: 'Pass@12345#',
+  logging: false,
+  pool: {
+    max: 5,
+    min: 0,
+    acquire: 30000,
+    idle: 10000
+  }
+});
 
-    async initialize() {
-        return await this.db.initialize();
-    }
-
-    async addDocuments(documents, embeddings, metadatas, ids) {
-        return await this.db.addDocuments(documents, embeddings, metadatas, ids);
-    }
-
-    async searchSimilar(queryEmbedding, nResults = 3) {
-        return await this.db.searchSimilar(queryEmbedding, nResults);
-    }
-
-    async getCollectionInfo() {
-        return await this.db.getCollectionInfo();
-    }
-
-    async getExistingIds() {
-        return await this.db.getExistingIds();
-    }
-}
-module.exports = VectorDatabase;
+module.exports = sequelize;

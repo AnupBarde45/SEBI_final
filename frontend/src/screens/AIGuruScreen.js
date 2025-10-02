@@ -19,7 +19,7 @@ const SUPPORTED_LANGUAGES = [
 // --- Mock Backend URL (REPLACE with your actual backend URL later!) ---
 // IMPORTANT: Change this to your backend's IP address if running on device!
 // Example: const BACKEND_URL = 'http://192.168.31.96'; (replace X with your laptop's local IP)
-const BACKEND_URL = 'http://192.168.31.96:3001';
+const BACKEND_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000';
 
 const { height } = Dimensions.get('window'); // Get screen height for responsive styling
 

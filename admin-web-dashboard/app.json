@@ -1,0 +1,11 @@
+{
+  "expo": {
+    "name": "SaralNivesh Admin Dashboard",
+    "slug": "saralnivesh-admin",
+    "version": "1.0.0",
+    "platforms": ["web"],
+    "web": {
+      "bundler": "metro"
+    }
+  }
+}
