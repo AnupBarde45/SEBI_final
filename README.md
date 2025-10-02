@@ -1,7 +1,7 @@
 # 📘 SaralNivesh – SEBI Education, Risk & Portfolio Assessment Platform
 
 **Please go through this project explanation which has a well-explained documentation and Demonstration Video:**
-🔗 [View Demo & Documentation](https://drive.google.com/drive/folders/1Uhl0bor-E88NKLXcFxSfT7aDc3rpHpFp?usp=sharing)
+🔗 [View Documentation](https://drive.google.com/drive/folders/1Uhl0bor-E88NKLXcFxSfT7aDc3rpHpFp?usp=sharing)
 
 ---
 
